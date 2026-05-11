@@ -211,18 +211,27 @@ function normalizeItems(items = []) {
 }
 
 async function seedDatabase() {
-  const [userCount, productCount] = await Promise.all([User.countDocuments(), Product.countDocuments()]);
+  const productCount = await Product.countDocuments();
 
-  if (userCount === 0) {
-    for (const seed of seedUsers) {
-      const passwordHash = await bcrypt.hash(seed.password, 10);
-      await User.create({
-        name: seed.name,
-        email: seed.email,
-        passwordHash,
-        role: seed.role,
-      });
-    }
+  for (const seed of seedUsers) {
+    const passwordHash = await bcrypt.hash(seed.password, 10);
+
+    await User.findOneAndUpdate(
+      { email: seed.email },
+      {
+        $set: {
+          name: seed.name,
+          passwordHash,
+          role: seed.role,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+      },
+    );
   }
 
   if (productCount === 0) {
