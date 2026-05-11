@@ -137,16 +137,10 @@ const seedProducts = [
 
 const seedUsers = [
   {
-    name: 'Admin User',
-    email: 'admin@shop.local',
-    password: 'Admin123!',
+    name: 'Admin',
+    email: 'admin@test.com',
+    password: 'admin@123',
     role: 'admin',
-  },
-  {
-    name: 'Demo Shopper',
-    email: 'customer@shop.local',
-    password: 'User123!',
-    role: 'user',
   },
 ];
 
@@ -271,6 +265,42 @@ app.post('/api/auth/login', async (req, res) => {
   const token = jwt.sign({ sub: user._id.toString(), role: user.role }, jwtSecret, { expiresIn: '7d' });
 
   return res.json({
+    token,
+    user: safeUser(user),
+  });
+});
+
+app.post('/api/auth/register', async (req, res) => {
+  const { name, email, password } = req.body || {};
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedName = String(name || '').trim();
+
+  if (!normalizedName || !normalizedEmail || !password) {
+    return res.status(400).json({ message: 'Name, email, and password are required.' });
+  }
+
+  if (String(password).length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+  }
+
+  const existingUser = await User.findOne({ email: normalizedEmail });
+
+  if (existingUser) {
+    return res.status(409).json({ message: 'An account with this email already exists.' });
+  }
+
+  const passwordHash = await bcrypt.hash(String(password), 10);
+
+  const user = await User.create({
+    name: normalizedName,
+    email: normalizedEmail,
+    passwordHash,
+    role: 'user',
+  });
+
+  const token = jwt.sign({ sub: user._id.toString(), role: user.role }, jwtSecret, { expiresIn: '7d' });
+
+  return res.status(201).json({
     token,
     user: safeUser(user),
   });
